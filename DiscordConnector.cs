@@ -106,7 +106,6 @@ namespace TwitEmbed
                     {
                         continue;
                     }
-                    suppress = true;
                     if (media.Type != MediaType.Photo)
                     {
                         //Video gif, modify the preview URL to get the true URL.
@@ -119,6 +118,7 @@ namespace TwitEmbed
                     }
                     else
                     {
+                        suppress = true;
                         EmbedBuilder eb = new EmbedBuilder();
                         if (currentIndex == 1)
                         {
