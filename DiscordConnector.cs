@@ -109,12 +109,15 @@ namespace TwitEmbed
                     if (media.Type != MediaType.Photo)
                     {
                         //Video gif, modify the preview URL to get the true URL.
-                        ProcessStartInfo psi = new ProcessStartInfo("yt-dlp", $"{twitterData.url} --get-url");
+                        ProcessStartInfo psi = new ProcessStartInfo("yt-dlp", $"--cookies cookies.txt {twitterData.url} --get-url");
                         psi.RedirectStandardOutput = true;
                         Process p = Process.Start(psi);
                         await p.WaitForExitAsync();
                         string realLink = p.StandardOutput.ReadToEnd();
-                        await message.ReplyAsync(realLink);
+                        if (!string.IsNullOrEmpty(realLink))
+                        {
+                            await message.ReplyAsync(realLink);
+                        }
                     }
                     else
                     {
