@@ -59,21 +59,31 @@ namespace TwitEmbed
             {
                 return;
             }
+
+            //Detect is bot is an admin
+            bool isAdmin = false;
             SocketTextChannel stc = message.Channel as SocketTextChannel;
-            if (stc == null)
+            if (stc != null)
             {
-                return;
+                SocketGuildChannel sgc = stc as SocketGuildChannel;
+                if (sgc != null)
+                {
+                    SocketGuildUser sgu = sgc.Guild.GetUser(discord.CurrentUser.Id);
+                    ChannelPermissions permissions = sgu.GetPermissions(sgc);
+                    isAdmin = permissions.ManageMessages;
+                }
             }
+
             SocketUserMessage sum = message as SocketUserMessage;
             if (sum == null)
             {
                 return;
             }
-            ParseMessage(stc, sum);
+            ParseMessage(sum, isAdmin);
             await Task.CompletedTask;
         }
 
-        async void ParseMessage(SocketTextChannel stc, SocketUserMessage message)
+        async void ParseMessage(SocketUserMessage message, bool isAdmin)
         {
             TwitterData[] tweets = await twitter.ParseTweet(message.Content);
             if (tweets.Length == 0)
@@ -81,17 +91,7 @@ namespace TwitEmbed
                 return;
             }
 
-            //Detect admin
-            bool isAdmin = false;
-            SocketGuildChannel sgc = stc as SocketGuildChannel;
-            if (sgc != null)
-            {
-                SocketGuildUser sgu = sgc.Guild.GetUser(discord.CurrentUser.Id);
-                ChannelPermissions permissions = sgu.GetPermissions(sgc);
-                isAdmin = permissions.ManageMessages;
-            }
-
-            await Log($"{message.Author.Id} {message.Author.Username}#{message.Author.Discriminator} posted a twitter link");
+            await Log($"{message.Author.Id} {message.Author.Username}#{message.Author.Discriminator} posted a twitter link {message.Content}");
 
             bool suppress = false;
             foreach (TwitterData twitterData in tweets)
