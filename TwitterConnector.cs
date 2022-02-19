@@ -4,6 +4,8 @@ using System.Net.Http;
 using System.Threading.Tasks;
 using TwitterSharp.Client;
 using TwitterSharp.Request.AdvancedSearch;
+using TwitterSharp.Response.RTweet;
+using Discord;
 
 namespace TwitEmbed
 {
@@ -20,13 +22,14 @@ namespace TwitEmbed
             tc = new TwitterClient(token);
             hc = new HttpClient();
             to = new TweetOption[] { TweetOption.Possibly_Sensitive, TweetOption.Attachments, TweetOption.Attachments_Ids };
-            mo = new MediaOption[] { MediaOption.Url };
+            mo = new MediaOption[] { MediaOption.Url, MediaOption.Preview_Image_Url, MediaOption.Duration_Ms, MediaOption.Height, MediaOption.Width };
+            uo = new UserOption[] { UserOption.Profile_Image_Url, UserOption.Url };
         }
 
-        public async Task<string[]> ParseTweet(string url)
+        public async Task<TwitterData[]> ParseTweet(string url)
         {
             string[] split = url.Split(' ');
-            List<string> returnValue = new List<string>();
+            List<TwitterData> returnValue = new List<TwitterData>();
             foreach (string str in split)
             {
                 if (str.StartsWith("http://twitter.com/"))
@@ -49,7 +52,7 @@ namespace TwitEmbed
             return returnValue.ToArray();
         }
 
-        private async Task ProcessFullLink(string url, List<string> returnValue)
+        private async Task ProcessFullLink(string url, List<TwitterData> returnValue)
         {
             //Decode URL
             string origUrl = url;
@@ -65,53 +68,45 @@ namespace TwitEmbed
             }
             int photoParse = -1;
             int photoIndex = url.IndexOf("/photo/");
+            int? mediaIndex = null;
             if (photoIndex != -1)
             {
                 string photoString = url.Substring(url.LastIndexOf("/") + 1);
-                Int32.TryParse(photoString, out photoParse);
+                if (Int32.TryParse(photoString, out int mediaIndexInt))
+                {
+                    mediaIndex = mediaIndexInt;
+                }
                 url = url.Substring(0, photoIndex);
             }
             if (Int64.TryParse(url, out long tweetID))
             {
-                var tweet = await tc.GetTweetAsync(url, to, null, mo);
+                var tweet = await tc.GetTweetAsync(url, to, uo, mo);
                 if (tweet.Attachments != null && tweet.Attachments.Media != null)
                 {
-                    if (photoParse == -1)
-                    {
-                        Console.WriteLine($"Parsed {url}, {tweet.Attachments.Media.Length} attachments");
-                        foreach (var attachment in tweet.Attachments.Media)
-                        {
-                            returnValue.Add(attachment.Url);
-                        }
-                    }
-                    else
-                    {
-                        if (tweet.Attachments.Media.Length >= photoIndex)
-                        {
-                            Console.WriteLine($"Parsed {url}, selected attachment");
-                            returnValue.Add(tweet.Attachments.Media[photoIndex].Url);
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Parsed {url}, selected attachment not found");
-                        }
-                    }
+                    TwitterData tg = new TwitterData(tweet, origUrl, mediaIndex);
+                    returnValue.Add(tg);
                 }
                 else
                 {
-                    Console.WriteLine($"Parsed {url}, no attachments");
+                    await Log($"Parsed {url}, no attachments");
                 }
             }
             else
             {
-                Console.WriteLine($"Failed to parse: {origUrl}, current: {url}");
+                await Log($"Failed to parse: {origUrl}, current: {url}");
             }
         }
 
-        private async Task ProcessShortLink(string url, List<string> returnValue)
+        private async Task ProcessShortLink(string url, List<TwitterData> returnValue)
         {
             HttpResponseMessage hrm = await hc.GetAsync(url);
             await ProcessFullLink(hrm.RequestMessage?.RequestUri.ToString(), returnValue);
+        }
+
+        async Task Log(string message, LogSeverity severity = LogSeverity.Info)
+        {
+            Program.Log(new LogMessage(severity, "TwitterConnector", message).ToString());
+            await Task.CompletedTask;
         }
     }
 }
