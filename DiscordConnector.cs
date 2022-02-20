@@ -109,9 +109,17 @@ namespace TwitEmbed
                     {
                         continue;
                     }
+                    suppress = true;
                     if (media.Type != MediaType.Photo)
                     {
                         //Video gif, modify the preview URL to get the true URL.
+                        int tIndex = twitterData.url.IndexOf("twitter");
+                        string twitterLHS = twitterData.url.Substring(0, tIndex);
+                        string twitterRHS = twitterData.url.Substring(tIndex);
+                        string fxTwitter = $"{twitterLHS}fx{twitterRHS}";
+                        IMessage sentMessage = await message.ReplyAsync(fxTwitter);
+                        db.AddReference(message.Id, sentMessage.Id);
+                        /*
                         ProcessStartInfo psi = new ProcessStartInfo("yt-dlp", $"--cookies cookies.txt {twitterData.url} --get-url");
                         psi.RedirectStandardOutput = true;
                         Process p = Process.Start(psi);
@@ -122,10 +130,10 @@ namespace TwitEmbed
                             IMessage sentMessage = await message.ReplyAsync(realLink);
                             db.AddReference(message.Id, sentMessage.Id);
                         }
+                        */
                     }
                     else
                     {
-                        suppress = true;
                         EmbedBuilder eb = new EmbedBuilder();
                         if (currentIndex == 1)
                         {
