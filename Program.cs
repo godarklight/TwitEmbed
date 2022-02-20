@@ -20,8 +20,9 @@ namespace TwitEmbed
                 Console.WriteLine("Usage: Program.exe TwitterKey DiscordKey");
                 return;
             }
+            Database db = new Database();
             TwitterConnector twitter = new TwitterConnector(args[0]);
-            DiscordConnector discord = new DiscordConnector(twitter);
+            DiscordConnector discord = new DiscordConnector(twitter, db);
             await discord.Login(args[1]);
             await discord.Start();
             await Task.Delay(-1);

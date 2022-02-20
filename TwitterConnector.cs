@@ -66,7 +66,6 @@ namespace TwitEmbed
             {
                 url = url.Substring(0, questionIndex);
             }
-            int photoParse = -1;
             int photoIndex = url.IndexOf("/photo/");
             int? mediaIndex = null;
             if (photoIndex != -1)
@@ -86,10 +85,6 @@ namespace TwitEmbed
                     TwitterData tg = new TwitterData(tweet, origUrl, mediaIndex);
                     returnValue.Add(tg);
                 }
-                else
-                {
-                    await Log($"Parsed {url}, no attachments");
-                }
             }
             else
             {
@@ -105,7 +100,7 @@ namespace TwitEmbed
 
         async Task Log(string message, LogSeverity severity = LogSeverity.Info)
         {
-            Program.Log(new LogMessage(severity, "TwitterConnector", message).ToString());
+            Program.Log(new LogMessage(severity, "Twitter", message).ToString());
             await Task.CompletedTask;
         }
     }

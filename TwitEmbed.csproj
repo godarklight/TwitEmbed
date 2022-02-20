@@ -7,6 +7,7 @@
 
   <ItemGroup>
     <PackageReference Include="discord.net" Version="3.3.2" />
+    <PackageReference Include="system.data.sqlite" Version="1.0.115.5" />
     <PackageReference Include="twittersharp" Version="1.5.0" />
   </ItemGroup>
 

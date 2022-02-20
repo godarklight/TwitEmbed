@@ -14,9 +14,10 @@ namespace TwitEmbed
 {
     class DiscordConnector
     {
+        Database db;
         DiscordSocketClient discord;
         TwitterConnector twitter;
-        public DiscordConnector(TwitterConnector twitter)
+        public DiscordConnector(TwitterConnector twitter, Database db)
         {
             DiscordSocketConfig dsc = new DiscordSocketConfig();
             dsc.GatewayIntents = GatewayIntents.AllUnprivileged;
@@ -27,7 +28,9 @@ namespace TwitEmbed
             discord.Ready += Ready;
             discord.Log += Log;
             discord.MessageReceived += MessageReceived;
+            discord.MessageDeleted += MessageDeleted;
             this.twitter = twitter;
+            this.db = db;
         }
 
         public async Task Login(string token)
@@ -116,7 +119,8 @@ namespace TwitEmbed
                         string realLink = p.StandardOutput.ReadToEnd();
                         if (!string.IsNullOrEmpty(realLink))
                         {
-                            await message.ReplyAsync(realLink);
+                            IMessage sentMessage = await message.ReplyAsync(realLink);
+                            db.AddReference(message.Id, sentMessage.Id);
                         }
                     }
                     else
@@ -130,7 +134,7 @@ namespace TwitEmbed
                         EmbedAuthorBuilder eab = new EmbedAuthorBuilder();
                         eab.WithUrl(twitterData.tweet.Author.Url);
                         eab.WithIconUrl(twitterData.tweet.Author.ProfileImageUrl);
-                        eab.Name = $"{twitterData.tweet.Author.Name} ({twitterData.tweet.Author.Username})";
+                        eab.Name = $"{twitterData.tweet.Author.Name} (@{twitterData.tweet.Author.Username})";
                         eb.WithAuthor(eab);
                         eb.ImageUrl = media.Url;
                         embeds.Add(eb.Build());
@@ -138,7 +142,8 @@ namespace TwitEmbed
                 }
                 if (embeds.Count > 0)
                 {
-                    await message.ReplyAsync($"<@{message.Author.Id}> <{twitterData.url}>", embeds: embeds.ToArray());
+                    IMessage sentMessage = await message.ReplyAsync("", embeds: embeds.ToArray());
+                    db.AddReference(message.Id, sentMessage.Id);
                 }
             }
 
@@ -159,6 +164,27 @@ namespace TwitEmbed
             properties.Flags = flags;
         }
 
+        async Task MessageDeleted(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel)
+        {
+            DeleteMessage(message, channel);
+            await Task.CompletedTask;
+        }
+
+        async void DeleteMessage(Cacheable<IMessage, ulong> message, Cacheable<IMessageChannel, ulong> channel)
+        {
+            ulong[] botPosts = db.GetBotPosts(message.Id);
+            if (botPosts.Length > 0)
+            {
+                db.DeleteSource(message.Id);
+                IMessageChannel imc = await channel.GetOrDownloadAsync();
+                foreach (ulong botPost in botPosts)
+                {
+                    await imc.DeleteMessageAsync(botPost);
+                }
+                await Log($"Deleted twitter message {message.Id}");
+            }
+        }
+
         async Task Log(LogMessage message)
         {
             Program.Log(message.ToString());
@@ -167,7 +193,7 @@ namespace TwitEmbed
 
         async Task Log(string message, LogSeverity severity = LogSeverity.Info)
         {
-            Program.Log(new LogMessage(severity, "DiscordConnector", message).ToString());
+            Program.Log(new LogMessage(severity, "Discord", message).ToString());
             await Task.CompletedTask;
         }
     }
